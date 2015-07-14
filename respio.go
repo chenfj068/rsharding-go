@@ -50,6 +50,7 @@ func (rw *RespReaderWriter) ProxyRead() (string, error) {
 		} else {
 			res = res + strconv.Itoa(length) + "\r\n\r\n"
 		}
+
 		return res, nil
 	case "*":
 		p, er := readPart(rw)
@@ -59,20 +60,20 @@ func (rw *RespReaderWriter) ProxyRead() (string, error) {
 		res := ""
 		size, _ := strconv.Atoi(p)
 		res = "*" + strconv.Itoa(size) + "\r\n"
-		for ; size > 0; size-- {
+		for i := 0; i < size; i++ {
 			b, er := rw.readerWriter.ReadByte()
 			if er != nil {
 				return "", er
 			}
-			s := string(b)
-			switch s {
+			_s := string(b)
+			switch _s {
 			case "$":
 				v, length, err := readBulkString(rw)
 				if err != nil {
 					return "", err
 				}
 				if length > 0 {
-					res = s + strconv.Itoa(length) + "\r\n" + v.(string) + "\r\n"
+					res = res + _s + strconv.Itoa(length) + "\r\n" + v.(string) + "\r\n"
 				} else if length == -1 {
 					res = res + strconv.Itoa(length) + "\r\n"
 				} else {
@@ -87,10 +88,11 @@ func (rw *RespReaderWriter) ProxyRead() (string, error) {
 				if err != nil {
 					return "", err
 				}
-				res = res + s + v + "\r\n"
+				res = res + _s + v + "\r\n"
 			}
-			return res, nil
+
 		}
+		return res, nil
 
 	}
 	return "", nil
@@ -102,7 +104,6 @@ func (rw *RespReaderWriter) ProxyWrite(encoded string) error {
 	return nil
 }
 func (w *RespReaderWriter) Write(command string, key string, params ...interface{}) error {
-
 	//create bulkstring array
 	//write bulkstring to conn output
 	cmdLen := 2 + len(params)
@@ -129,7 +130,7 @@ func (w *RespReaderWriter) Write(command string, key string, params ...interface
 		ss += s0
 
 	}
-	fmt.Println("write string:" + ss)
+	//	fmt.Println("write string:" + ss)
 	_, err := w.readerWriter.WriteString(ss)
 	w.readerWriter.Flush()
 	if err != nil {

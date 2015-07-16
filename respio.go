@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"fmt"
 	"net"
+	//"time"
 	"strconv"
 )
 
@@ -23,7 +24,7 @@ func NewRespReadWriter(conn net.Conn) RespReaderWriter {
 	return cw
 }
 
-//read raw string data from server
+//read raw string data from server、client
 func (rw *RespReaderWriter) ProxyRead() (string, error) {
 	b, err := rw.readerWriter.ReadByte()
 	if err != nil {
@@ -139,6 +140,24 @@ func (w *RespReaderWriter) Write(command string, key string, params ...interface
 	return nil
 }
 
+func (r *RespReaderWriter) LoopRead(cch chan<- int) (dch <-chan []interface{}) {
+	ch := make(chan []interface{})
+	go func() {
+		for {
+			d, err := r.Read()
+			if err != nil {
+				fmt.Printf("%v",err)
+				cch <- 1
+				close(cch)
+				close(ch)
+				break
+			} else if(len(d)>0){
+				ch <- d
+			}
+		}
+	}()
+	return ch
+}
 func (r *RespReaderWriter) Read() ([]interface{}, error) {
 	b, err := r.readerWriter.ReadByte()
 	if err != nil {
@@ -178,6 +197,7 @@ func (r *RespReaderWriter) Read() ([]interface{}, error) {
 		return array, nil
 
 	}
+	fmt.Println("return nil")
 	return nil, nil
 }
 

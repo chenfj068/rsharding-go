@@ -7,11 +7,12 @@ import (
 )
 
 func main() {
-	var wg sync.WaitGroup
-	server:=NewProxyServer("0.0.0.0:6479","54.223.201.162:6479")
-	server.Start()
-	wg.Add(1)
-	wg.Wait()
+		var wg sync.WaitGroup
+		server:=NewProxyServer("0.0.0.0:6479","54.223.201.162:6479")
+		server.Start()
+		wg.Add(1)
+		wg.Wait()
+
 }
 
 func hset(rw RespReaderWriter) {

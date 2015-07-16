@@ -24,8 +24,9 @@ func (s ProxyServer) Start() error {
 			if er != nil {
 				//
 			}
-			out,_:=net.Dial("tcp",s.TargetHost)
-			go procRequest(conn,out)
+//			out, _ := net.Dial("tcp", s.TargetHost)
+//			go procRequest(conn, out)
+			go HandleConn(conn)
 
 		}
 
@@ -34,17 +35,17 @@ func (s ProxyServer) Start() error {
 	return nil
 }
 
-func procRequest(conn net.Conn,outConn net.Conn) {
+func procRequest(conn net.Conn, outConn net.Conn) {
 	readWriter := NewRespReadWriter(conn)
-	out:=NewRespReadWriter(outConn)
-	for{
-		str,err:=readWriter.ProxyRead()
-		if err!=nil{
+	out := NewRespReadWriter(outConn)
+	for {
+		str, err := readWriter.ProxyRead()
+		if err != nil {
 			return
 		}
 		out.ProxyWrite(str)
-		resp,_:=out.ProxyRead()
+		resp, _ := out.ProxyRead()
 		readWriter.ProxyWrite(resp)
 	}
-	
+
 }

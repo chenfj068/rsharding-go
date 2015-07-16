@@ -61,6 +61,7 @@ func (p *ObjectPool) Return(po PooledObject) {
 	if !po.Broken {
 		p.IdelList.PushBack(head.Value)
 	}
+	fmt.Printf("Idel:%d,Busy:%d\n",p.IdelList.Len(),p.BusyList.Len())
 
 }
 

@@ -12,7 +12,7 @@ import (
 var (
 	crcTable *crc32.Table
 	target   RespReaderWriter
-	pool ObjectPool
+	pool     ObjectPool
 	//serverList list.New()
 )
 
@@ -41,19 +41,26 @@ func GetReadWriter(hash int) RespReaderWriter {
 	return target
 }
 
-func GetPooledReadWriter(hash int)PooledObject{
-	rwobj,err:=pool.Borrow()
-	if(err!=nil){
+func GetPooledReadWriter(hash int) PooledObject {
+	rwobj, err := pool.Borrow()
+	if err != nil {
 		fmt.Println("wocao")
 	}
 	return rwobj
 }
 func HandleConn(conn net.Conn) {
 	client := NewRespReadWriter(conn)
-	cch := make(chan int)//close flag chan
+	cch := make(chan int) //close flag chan
 	dch := client.LoopRead(cch)
-	mp:=make(map[uint32]PooledObject)
-	for  {
+	mp := make(map[uint32]PooledObject)
+
+	defer func() {
+		for _, o := range mp {
+			pool.Return(o)
+		}
+
+	}()
+	for {
 		select {
 		case <-cch:
 			fmt.Println("client closed")
@@ -75,12 +82,12 @@ func HandleConn(conn net.Conn) {
 			for i := 2; i < len(params); i++ {
 				s += "$" + fmt.Sprint(len(params[i].(string))) + "\r\n" + params[i].(string) + "\r\n"
 			}
-			if o,ok:=mp[hash];!ok{
-				o=GetPooledReadWriter(int(hash))
-				mp[hash]=o
+			if o, ok := mp[hash]; !ok {
+				o = GetPooledReadWriter(int(hash))
+				mp[hash] = o
 			}
 			server := mp[hash]
-			ss:=server.Value.(RespReaderWriter)
+			ss := server.Value.(RespReaderWriter)
 			ss.ProxyWrite(s)
 			resp, _ := ss.ProxyRead()
 			client.ProxyWrite(resp)
@@ -92,10 +99,10 @@ func HandleConn(conn net.Conn) {
 }
 
 func init() {
-//	conn, err := net.Dial("tcp", "54.223.201.162:6479")
-//	if err != nil {
-//		fmt.Printf("%v\n", err)
-//	}
-	pool=NewProxyClientPool("54.223.201.162:6479")
+	//	conn, err := net.Dial("tcp", "54.223.201.162:6479")
+	//	if err != nil {
+	//		fmt.Printf("%v\n", err)
+	//	}
+	pool = NewProxyClientPool("54.223.201.162:6479")
 	//starget = NewRespReadWriter(conn)
 }

@@ -14,13 +14,16 @@ import (
 
 type RespReaderWriter struct {
 	readerWriter bufio.ReadWriter
+	conn net.Conn
 }
-
+func (rw *RespReaderWriter)Close(){
+	rw.conn.Close()
+	}
 func NewRespReadWriter(conn net.Conn) RespReaderWriter {
 	writer := bufio.NewWriter(conn)
 	reader := bufio.NewReader(conn)
 	rw := bufio.NewReadWriter(reader, writer)
-	cw := RespReaderWriter{readerWriter: *rw}
+	cw := RespReaderWriter{readerWriter: *rw,conn:conn}
 	return cw
 }
 
@@ -32,6 +35,13 @@ func (rw *RespReaderWriter) ProxyRead() (string, error) {
 	}
 	s := string(b)
 	switch s {
+	case " ":
+		ss,er:=readPart(rw)
+		if(er!=nil){
+			return "",er
+		}
+		fmt.Println("read internal command")
+		return ss,nil	
 	case "+", "-", ":":
 		ss, er := readPart(rw)
 		if er != nil {
@@ -146,7 +156,7 @@ func (r *RespReaderWriter) LoopRead(cch chan<- int) (dch <-chan []interface{}) {
 		for {
 			d, err := r.Read()
 			if err != nil {
-				fmt.Printf("%v",err)
+//				fmt.Printf("%v",err)
 				cch <- 1
 				close(cch)
 				close(ch)
@@ -165,6 +175,13 @@ func (r *RespReaderWriter) Read() ([]interface{}, error) {
 	}
 	s := string(b)
 	switch s {
+	case " ":
+		ss,er:=readPart(r)
+		if(er!=nil){
+			return nil,er
+		}
+		fmt.Println("read internal command")
+		return []interface{}{ss},nil	
 	case "+":
 		s, er := readPart(r)
 		if er != nil {

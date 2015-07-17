@@ -6,11 +6,10 @@ import (
 
 type ProxyServer struct {
 	ListenHost string
-	TargetHost string
 }
 
-func NewProxyServer(listen_host, target_host string) ProxyServer {
-	return ProxyServer{ListenHost: listen_host, TargetHost: target_host}
+func NewProxyServer(listen_host string) ProxyServer {
+	return ProxyServer{ListenHost: listen_host}
 }
 
 func (s ProxyServer) Start() error {

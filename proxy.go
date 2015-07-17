@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"hash/crc32"
 	"net"
+	"errors"
 )
 
 var (
@@ -50,16 +51,25 @@ func NewShards() Shards {
 	return sh
 
 }
-func (shard Shards) GetPooledObject(hash uint32) (*PooledObject, error) {
-	for _, shard := range shard.ShardServers {
+func (shards Shards) GetPooledObject(hash uint32) (obj *PooledObject,shard Shard,err error) {
+	for _, shard := range shards.ShardServers {
 		if hash >= shard.Slot0 && hash < shard.Slot1 {
 			fmt.Printf("get shard:%v\n", shard)
 			obj, er := shard.ShardRespPool.Borrow()
-			return obj, er
+			return obj,shard, er
 		}
 	}
-	return nil, nil
+	return nil,Shard{}, nil
 }
+
+func (shards Shards)GetShard(hash uint32)(Shard,error){
+	for i, shard := range shards.ShardServers{
+		if hash>=shard.Slot0&&hash<shard.Slot1{
+			return shards.ShardServers[i],nil
+		}
+	}
+	return Shard{},errors.New("no shard found")
+	}
 
 func HandleConn(conn net.Conn) {
 	//	timeout := time.Now()
@@ -69,6 +79,7 @@ func HandleConn(conn net.Conn) {
 	cch := make(chan int) //close flag chan
 	dch := client.LoopRead(cch)
 	mp := make(map[uint32]*PooledObject)
+	shardMap:=make(map[Shard]*PooledObject)
 	var lastHash uint32
 	defer func() {
 		o := mp[lastHash]
@@ -108,17 +119,26 @@ func HandleConn(conn net.Conn) {
 				for i := 2; i < len(params); i++ {
 					s += "$" + fmt.Sprint(len(params[i].(string))) + "\r\n" + params[i].(string) + "\r\n"
 				}
-				if _, ok := mp[hash]; !ok {
-					o1, er := shards.GetPooledObject(hash)
-					if er != nil {
+				shard,err:=shards.GetShard(hash)
+				if(err!=nil){
+					//handle error
+					client.Close()
+					return
+				}
+				if ob,ok:=shardMap[shard];!ok{
+					fmt.Println("get new shard")
+					ob,err=shard.ShardRespPool.Borrow()
+					if(err!=nil){
 						client.Close()
 						return
+					}else{
+						shardMap[shard]=ob
 					}
-					mp[hash] = o1
 				}
-				server := mp[hash]
+			
+				server :=shardMap[shard]
 				ss := server.Value.(RespReaderWriter)
-				err := ss.ProxyWrite(s)
+				err = ss.ProxyWrite(s)
 				if err != nil {
 					fmt.Printf("backend server write error:%v\n", err)
 					return

@@ -12,7 +12,6 @@ func main() {
 		server.Start()
 		wg.Add(1)
 		wg.Wait()
-//43 80 79 78 71 13 10
 }
 
 func hset(rw RespReaderWriter) {

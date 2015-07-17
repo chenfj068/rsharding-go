@@ -25,8 +25,13 @@ type NewPoolObject func() (*PooledObject, error)
 type ChechPooledObject func(obj *PooledObject) bool
 
 type PooledObject struct {
-	Value  interface{}
-	Broken bool
+	Value   interface{}
+	Broken  bool
+	ObjPool *ObjectPool
+}
+
+func (poolObj *PooledObject) Release() {
+	poolObj.ObjPool.Return(poolObj)
 }
 
 func (p *ObjectPool) Init() {
@@ -48,6 +53,7 @@ func (p ObjectPool) Borrow() (*PooledObject, error) {
 		//invoke NewPoolObject function to create new Conn
 		for i := 0; i < 3; i++ {
 			obj, er := p.NewObjectFunc()
+			obj.ObjPool=&p
 			if er == nil {
 				p.IdelList.PushBack(obj)
 			}
@@ -57,47 +63,10 @@ func (p ObjectPool) Borrow() (*PooledObject, error) {
 	p.BusyList.PushBack(ele.Value)
 	p.IdelList.Remove(ele)
 	return ele.Value.(*PooledObject), nil
-	//	if len(p.IdelArray) == 0 {
-	//		//no idel object left
-	//		//invoke NewPoolObject function to create new Conn
-	//		for i := 0; i < 3; i++ {
-	//			obj, _ := p.NewObjectFunc()
-	//			if obj != nil {
-	//				p.IdelArray = append(p.IdelArray, obj)
-	//			}
-	//		}
-	//	}
-	//	for i := 0; i < len(p.IdelArray); i++ {
-	//		obj := pool.IdelArray[i]
-	//		if ok := pool.ObjectCheckFunc(obj); ok {
-	//			pool.BusyArray = append(pool.BusyArray, obj)
-	//			if i < len(p.IdelArray)-1 {
-	//				pool.IdelArray = pool.IdelArray[i+1:]
-	//			} else {
-	//				pool.IdelArray = make([]*PooledObject, 0, 50)
-	//			}
-	//			return obj, nil
-	//		}
-	//	}
-	//	return nil, nil
-
+	
 }
 
 func (p ObjectPool) Return(po *PooledObject) {
-	//	p.Lock.Lock()
-	//	defer p.Lock.Unlock()
-	//	for i := 0; i < len(p.BusyArray); i++ {
-	//		if po == p.BusyArray[i] {
-	//			a := make([]*PooledObject, 0, 50)
-	//			a = append(p.BusyArray[0:i])
-	//			if i+1 < len(p.BusyArray) {
-	//				a = append(p.BusyArray[i+1:])
-	//			}
-	//			p.BusyArray = a
-	//			p.IdelArray=append(p.IdelArray,po)
-	//		}
-	//	}
-
 	p.Lock.Lock()
 	defer p.Lock.Unlock()
 	head := p.BusyList.Front()
@@ -115,7 +84,7 @@ func (p ObjectPool) Return(po *PooledObject) {
 
 }
 
-func NewProxyClientPool(host string) ObjectPool {
+func NewProxyClientPool(host string) *ObjectPool {
 	pool := ObjectPool{}
 	//var mutex = &sync.Mutex{}
 	pool.BusyList = list.New()
@@ -135,7 +104,7 @@ func NewProxyClientPool(host string) ObjectPool {
 	}
 	pool.ObjectCheckFunc = CheckRespReadWriter
 	pool.Init()
-	return pool
+	return &pool
 }
 
 func CheckRespReadWriter(obj *PooledObject) bool {

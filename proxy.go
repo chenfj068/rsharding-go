@@ -78,17 +78,16 @@ func HandleConn(conn net.Conn) {
 	client := NewRespReadWriter(conn)
 	cch := make(chan int) //close flag chan
 	dch := client.LoopRead(cch)
-	mp := make(map[uint32]*PooledObject)
 	shardMap:=make(map[Shard]*PooledObject)
-	var lastHash uint32
+//	var lastHash uint32
 	defer func() {
-		o := mp[lastHash]
-		if o != nil {
-			o.Broken = true
-			rw := o.Value.(RespReaderWriter)
-			rw.Close()
-		}
-		for _, o := range mp {
+//		o := mp[lastHash]
+//		if o != nil {
+//			o.Broken = true
+//			rw := o.Value.(RespReaderWriter)
+//			rw.Close()
+//		}
+		for _, o := range shardMap {
 			o.Release()
 		}
 		client.Close()
@@ -108,7 +107,7 @@ func HandleConn(conn net.Conn) {
 			} else {
 				key := params[1].(string)
 				hash := Hash(key) % uint32(1024)
-				lastHash = hash
+//				lastHash = hash
 				key = fmt.Sprint(hash) + "_" + key
 				fmt.Println(key)
 				s := "*" + fmt.Sprint(len(params)) + "\r\n"

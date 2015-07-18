@@ -39,13 +39,14 @@ func (p *ObjectPool) Init() {
 	p.BusyArray = make([]*PooledObject, 0, 50)
 	for i := 0; i < 4; i++ {
 		obj, _ := p.NewObjectFunc()
+		obj.ObjPool=p
 		if obj != nil {
 			p.IdelList.PushFront(obj)
 		}
 		//p.IdelArray = append(p.IdelArray, obj)
 	}
 }
-func (p ObjectPool) Borrow() (*PooledObject, error) {
+func (p *ObjectPool) Borrow() (*PooledObject, error) {
 	p.Lock.Lock()
 	defer p.Lock.Unlock()
 	if p.IdelList.Len() == 0 {
@@ -53,7 +54,7 @@ func (p ObjectPool) Borrow() (*PooledObject, error) {
 		//invoke NewPoolObject function to create new Conn
 		for i := 0; i < 3; i++ {
 			obj, er := p.NewObjectFunc()
-			obj.ObjPool=&p
+			obj.ObjPool=p
 			if er == nil {
 				p.IdelList.PushBack(obj)
 			}

@@ -37,11 +37,11 @@ type Shards struct {
 func NewShards() Shards {
 	sh := Shards{}
 	s1 := Shard{}
-	s1.Host = "54.223.211.11:6479"
+	s1.Host = "172.31.6.58:6479"
 	s1.Slot0 = 0
 	s1.Slot1 = 512
 	s2 := Shard{}
-	s2.Host = "54.223.211.11:6579"
+	s2.Host = "172.31.6.58:6579"
 	s2.Slot0 = 512
 	s2.Slot1 = 1024
 	s1.ShardRespPool = NewProxyClientPool(s1.Host)

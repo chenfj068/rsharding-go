@@ -80,14 +80,15 @@ func (p ObjectPool) Return(po *PooledObject) {
 	p.BusyList.Remove(head)
 	if !po.Broken {
 		p.IdelList.PushBack(head.Value)
+	}else{
+		po.Value.(*RespReaderWriter).Close()
 	}
-	fmt.Printf("Idel:%d,Busy:%d\n", p.IdelList.Len(), p.BusyList.Len())
+	fmt.Printf("Idel:%d,Busy:%d, %v\n", p.IdelList.Len(), p.BusyList.Len(),p)
 
 }
 
 func NewProxyClientPool(host string) *ObjectPool {
 	pool := ObjectPool{}
-	//var mutex = &sync.Mutex{}
 	pool.BusyList = list.New()
 	pool.IdelList = list.New()
 	pool.Lock = &sync.Mutex{}
@@ -99,7 +100,7 @@ func NewProxyClientPool(host string) *ObjectPool {
 			return nil, err
 		}
 		rw := NewRespReadWriter(conn)
-		o.Value = rw
+		o.Value = &rw
 		o.Broken = false
 		return &o, nil
 	}

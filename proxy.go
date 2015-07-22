@@ -117,7 +117,7 @@ func HandleConn(conn net.Conn) {
 				hash := Hash(key) % uint32(1024)
 				lastHash = hash
 				key = fmt.Sprint(hash) + "_" + key
-				fmt.Println(key)
+//				fmt.Println(key)
 				s := "*" + fmt.Sprint(len(params)) + "\r\n"
 				s += "$" + fmt.Sprint(len(cmd)) + "\r\n" + cmd + "\r\n"
 				s += "$" + fmt.Sprint(len(key)) + "\r\n" + key + "\r\n"

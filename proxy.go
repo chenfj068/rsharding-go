@@ -81,8 +81,8 @@ func HandleConn(conn net.Conn) {
 	shardMap := make(map[Shard]*PooledObject)
 	var lastHash uint32
 	defer func() {
-		for shard, o := range shardMap {
-			if lastHash >= shard.Slot0 && lastHash < shard.Slot1 {
+		for _, o := range shardMap {
+			//if lastHash >= shard.Slot0 && lastHash < shard.Slot1 {
 				serverConn:=o.Value.(*RespReaderWriter)
 				s:="*1\r\n$4\r\nQUIT\r\n"
 				err:=serverConn.ProxyWrite(s)
@@ -91,7 +91,7 @@ func HandleConn(conn net.Conn) {
 				}
 				o.Broken = true //set last one to broken
 				fmt.Printf("set conn to broken,lastHash :%d\n", lastHash)
-			}
+		//	}
 			o.Release()
 			
 

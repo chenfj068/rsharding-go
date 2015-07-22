@@ -82,13 +82,18 @@ func HandleConn(conn net.Conn) {
 	var lastHash uint32
 	defer func() {
 		for shard, o := range shardMap {
-			//			if o != nil {
 			if lastHash >= shard.Slot0 && lastHash < shard.Slot1 {
+				serverConn:=o.Value.(*RespReaderWriter)
+				s:="*1\r\n$4\r\nQUIT\r\n"
+				err:=serverConn.ProxyWrite(s)
+				if err!=nil{
+					fmt.Printf("send quit error %v\n",err)
+				}
 				o.Broken = true //set last one to broken
 				fmt.Printf("set conn to broken,lastHash :%d\n", lastHash)
 			}
 			o.Release()
-			//			}
+			
 
 		}
 		client.Close()
@@ -101,15 +106,16 @@ func HandleConn(conn net.Conn) {
 			if len(params) == 0 {
 				continue
 			}
-			//fmt.Println(params)
 			cmd := params[0].(string)
 			if cmd == "PING" {
 				client.ProxyWrite("+PONG\r\n")
 			} else if cmd == "QUIT" {
-				//client closed
 				client.ProxyWrite("+OK\r\n")
 				client.Close()
 				return
+			} else if cmd == "ECHO" {
+				s:=fmt.Sprintf("$%d%s\r\n",len(params[1].(string)),params[1].(string))
+				client.ProxyWrite(s)
 			} else {
 				if len(params) < 2 {
 					fmt.Println(params)
@@ -123,7 +129,7 @@ func HandleConn(conn net.Conn) {
 				s += "$" + fmt.Sprint(len(cmd)) + "\r\n" + cmd + "\r\n"
 				s += "$" + fmt.Sprint(len(key)) + "\r\n" + key + "\r\n"
 
-				//here should checke nil and empty string
+				//here should check nil and empty string
 				for i := 2; i < len(params); i++ {
 					s += "$" + fmt.Sprint(len(params[i].(string))) + "\r\n" + params[i].(string) + "\r\n"
 				}
@@ -157,7 +163,6 @@ func HandleConn(conn net.Conn) {
 				if err != nil {
 					fmt.Printf("backend server read error:%v\n", err)
 					server.Broken = true
-					//server.Release()
 					return
 				}
 				err = client.ProxyWrite(resp)

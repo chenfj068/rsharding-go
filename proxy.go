@@ -101,6 +101,7 @@ func HandleConn(conn net.Conn) {
 			if len(params) == 0 {
 				continue
 			}
+			//fmt.Println(params)
 			cmd := params[0].(string)
 			if cmd == "PING" {
 				client.ProxyWrite("+PONG\r\n")
@@ -117,7 +118,7 @@ func HandleConn(conn net.Conn) {
 				hash := Hash(key) % uint32(1024)
 				lastHash = hash
 				key = fmt.Sprint(hash) + "_" + key
-//				fmt.Println(key)
+				//fmt.Println(key)
 				s := "*" + fmt.Sprint(len(params)) + "\r\n"
 				s += "$" + fmt.Sprint(len(cmd)) + "\r\n" + cmd + "\r\n"
 				s += "$" + fmt.Sprint(len(key)) + "\r\n" + key + "\r\n"
@@ -153,7 +154,6 @@ func HandleConn(conn net.Conn) {
 					return
 				}
 				resp, err := ss.ProxyRead()
-
 				if err != nil {
 					fmt.Printf("backend server read error:%v\n", err)
 					server.Broken = true

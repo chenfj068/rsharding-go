@@ -33,6 +33,7 @@ func (rw *RespReaderWriter) ProxyRead() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	
 	s := string(b)
 	switch s {
 	case " ":
@@ -57,9 +58,9 @@ func (rw *RespReaderWriter) ProxyRead() (string, error) {
 		if length > 0 {
 			res = s + strconv.Itoa(length) + "\r\n" + ss.(string) + "\r\n"
 		} else if length == -1 {
-			res = res + strconv.Itoa(length) + "\r\n"
+			res = res + "$"+strconv.Itoa(length) + "\r\n"
 		} else {
-			res = res + strconv.Itoa(length) + "\r\n\r\n"
+			res = res +"$"+ strconv.Itoa(length) + "\r\n\r\n"
 		}
 
 		return res, nil
@@ -86,9 +87,9 @@ func (rw *RespReaderWriter) ProxyRead() (string, error) {
 				if length > 0 {
 					res = res + _s + strconv.Itoa(length) + "\r\n" + v.(string) + "\r\n"
 				} else if length == -1 {
-					res = res + strconv.Itoa(length) + "\r\n"
+					res = res+_s + strconv.Itoa(length) + "\r\n"
 				} else {
-					res = res + strconv.Itoa(length) + "\r\n\r\n"
+					res = res +_s+ strconv.Itoa(length) + "\r\n\r\n"
 				}
 			case "+":
 				fallthrough
@@ -224,6 +225,9 @@ func readArray(r *RespReaderWriter) ([]interface{}, error) {
 		return nil, er
 	}
 	size, _ := strconv.Atoi(p)
+	if size<0{
+		fmt.Println("read nil array")
+	}
 	res := make([]interface{}, 0, size)
 	for ; size > 0; size-- {
 		b, er := r.readerWriter.ReadByte()
@@ -265,13 +269,9 @@ func readBulkString(r *RespReaderWriter) (interface{}, int, error) {
 	}
 	length, _ := strconv.Atoi(s)
 	if length == -1 { //null value
-		r.readerWriter.ReadByte()
-		r.readerWriter.ReadByte()
 		return nil, length, nil
 	}
 	if length == 0 { //empty string
-		r.readerWriter.ReadByte()
-		r.readerWriter.ReadByte()
 		r.readerWriter.ReadByte()
 		r.readerWriter.ReadByte()
 		return "", length, nil

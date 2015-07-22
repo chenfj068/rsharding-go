@@ -37,11 +37,11 @@ type Shards struct {
 func NewShards() Shards {
 	sh := Shards{}
 	s1 := Shard{}
-	s1.Host = "172.31.6.58:6479"
+	s1.Host = "54.223.211.11:6479"
 	s1.Slot0 = 0
 	s1.Slot1 = 512
 	s2 := Shard{}
-	s2.Host = "172.31.6.58:6579"
+	s2.Host = "54.223.211.11:6579"
 	s2.Slot0 = 512
 	s2.Slot1 = 1024
 	s1.ShardRespPool = NewProxyClientPool(s1.Host)
@@ -104,6 +104,11 @@ func HandleConn(conn net.Conn) {
 			cmd := params[0].(string)
 			if cmd == "PING" {
 				client.ProxyWrite("+PONG\r\n")
+			} else if cmd == "QUIT" {
+				//client closed
+				client.ProxyWrite("+OK\r\n")
+				client.Close()
+				return
 			} else {
 				if len(params) < 2 {
 					fmt.Println(params)
@@ -112,7 +117,7 @@ func HandleConn(conn net.Conn) {
 				hash := Hash(key) % uint32(1024)
 				lastHash = hash
 				key = fmt.Sprint(hash) + "_" + key
-				//fmt.Println(key)
+				fmt.Println(key)
 				s := "*" + fmt.Sprint(len(params)) + "\r\n"
 				s += "$" + fmt.Sprint(len(cmd)) + "\r\n" + cmd + "\r\n"
 				s += "$" + fmt.Sprint(len(key)) + "\r\n" + key + "\r\n"

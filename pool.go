@@ -16,8 +16,6 @@ type ObjectPool struct {
 	IdelList        *list.List
 	BusyList        *list.List
 
-	IdelArray []*PooledObject
-	BusyArray []*PooledObject
 	Lock      *sync.Mutex
 }
 
@@ -35,8 +33,6 @@ func (poolObj *PooledObject) Release() {
 }
 
 func (p *ObjectPool) Init() {
-	p.IdelArray = make([]*PooledObject, 0, 50)
-	p.BusyArray = make([]*PooledObject, 0, 50)
 	for i := 0; i < 4; i++ {
 		obj, _ := p.NewObjectFunc()
 		obj.ObjPool=p

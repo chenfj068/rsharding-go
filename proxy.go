@@ -39,14 +39,25 @@ func NewShards() Shards {
 	s1 := Shard{}
 	s1.Host = "172.31.6.58:6479"
 	s1.Slot0 = 0
-	s1.Slot1 = 512
+	s1.Slot1 = 256
 	s2 := Shard{}
 	s2.Host = "172.31.6.58:6579"
-	s2.Slot0 = 512
-	s2.Slot1 = 1024
+	s2.Slot0 = 256
+	s2.Slot1 = 512
+	s3 := Shard{}
+	s3.Host = "127.0.0.1:6479"
+	s3.Slot0 = 512
+	s3.Slot1 = 768
+	s4 := Shard{}
+	s4.Host = "127.0.0.1:6579"
+	s4.Slot0 = 768
+	s4.Slot1 = 1024
+	
 	s1.ShardRespPool = NewProxyClientPool(s1.Host)
 	s2.ShardRespPool = NewProxyClientPool(s2.Host)
-	sh.ShardServers = []Shard{s1, s2}
+	s3.ShardRespPool = NewProxyClientPool(s3.Host)
+	s4.ShardRespPool = NewProxyClientPool(s4.Host)
+	sh.ShardServers = []Shard{s1, s2,s3,s4}
 	return sh
 
 }

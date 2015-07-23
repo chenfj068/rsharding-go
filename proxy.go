@@ -45,7 +45,7 @@ func NewShards() Shards {
 	s2.Slot0 = 256
 	s2.Slot1 = 512
 	s3 := Shard{}
-	s3.Host = "127.0.0.1:6479"
+	s3.Host = "127.0.0.1:6679"
 	s3.Slot0 = 512
 	s3.Slot1 = 768
 	s4 := Shard{}

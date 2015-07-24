@@ -129,7 +129,7 @@ func HandleConn(conn net.Conn) {
 				s := "*" + fmt.Sprint(len(params)) + "\r\n"
 				s += "$" + fmt.Sprint(len(cmd)) + "\r\n" + cmd + "\r\n"
 				s += "$" + fmt.Sprint(len(key)) + "\r\n" + key + "\r\n"
-				fmt.Printf("get hash %d \n",hash)
+				
 				//here should check nil and empty string
 				for i := 2; i < len(params); i++ {
 					s += "$" + fmt.Sprint(len(params[i].(string))) + "\r\n" + params[i].(string) + "\r\n"

@@ -104,7 +104,6 @@ func HandleConn(conn net.Conn) {
 		case <-cch:
 			return
 		case params := <-dch:
-			fmt.Println(params)
 			if len(params) == 0 {
 				continue
 			}

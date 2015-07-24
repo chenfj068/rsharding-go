@@ -7,6 +7,10 @@ import (
 	"fmt"
 	"hash/crc32"
 	"net"
+	"os"
+	"encoding/json"
+//	"strconv"
+	"io/ioutil"
 )
 
 var (
@@ -23,44 +27,28 @@ func Hash(key string) uint32 {
 }
 
 type Shard struct {
-	Host          string
-	Slot0         uint32
-	Slot1         uint32
-	ShardRespPool *ObjectPool
+	Host          string  	`json:"host"`
+	Slot0         uint32  	`json:"slot0"`
+	Slot1         uint32  	`json:"slot1"`
+	ShardRespPool *ObjectPool `json:"-"`
 }
+
 
 type Shards struct {
-	Slots        uint32
-	ShardServers []Shard
+	Slots        uint32  `json:"slots"`
+	ShardServers []Shard `json:"servers"`
+	}
+//just for config parsing
+type ConfigShards struct{
+	Slots        int  `json:"slots"`
+	ShardServers []struct {
+		Host   string  `json:"host"`
+		Slot0  int  `json:"slot0"`
+		Slot1  int  `json:"slot1"`
+		} `json:"shardServers"`
 }
 
-func NewShards() Shards {
-	sh := Shards{}
-	s1 := Shard{}
-	s1.Host = "172.31.6.58:6479"
-	s1.Slot0 = 0
-	s1.Slot1 = 256
-	s2 := Shard{}
-	s2.Host = "172.31.6.58:6579"
-	s2.Slot0 = 256
-	s2.Slot1 = 512
-	s3 := Shard{}
-	s3.Host = "127.0.0.1:6679"
-	s3.Slot0 = 512
-	s3.Slot1 = 768
-	s4 := Shard{}
-	s4.Host = "127.0.0.1:6579"
-	s4.Slot0 = 768
-	s4.Slot1 = 1024
-	
-	s1.ShardRespPool = NewProxyClientPool(s1.Host)
-	s2.ShardRespPool = NewProxyClientPool(s2.Host)
-	s3.ShardRespPool = NewProxyClientPool(s3.Host)
-	s4.ShardRespPool = NewProxyClientPool(s4.Host)
-	sh.ShardServers = []Shard{s1, s2,s3,s4}
-	return sh
 
-}
 func (shards Shards) GetPooledObject(hash uint32) (obj *PooledObject, shard Shard, err error) {
 	for _, shard := range shards.ShardServers {
 		if hash >= shard.Slot0 && hash < shard.Slot1 {
@@ -78,6 +66,7 @@ func (shards Shards) GetShard(hash uint32) (Shard, error) {
 			return shards.ShardServers[i], nil
 		}
 	}
+	fmt.Println("no shard found")
 	return Shard{}, errors.New("no shard found")
 }
 
@@ -86,6 +75,7 @@ func HandleConn(conn net.Conn) {
 	//	timeout.Add(10 *time.Minute )
 	//	conn.SetReadDeadline(timeout)
 	//conn.
+	
 	client := NewRespReadWriter(conn)
 	cch := make(chan int) //close flag chan
 	dch := client.LoopRead(cch)
@@ -114,6 +104,7 @@ func HandleConn(conn net.Conn) {
 		case <-cch:
 			return
 		case params := <-dch:
+			fmt.Println(params)
 			if len(params) == 0 {
 				continue
 			}
@@ -139,7 +130,7 @@ func HandleConn(conn net.Conn) {
 				s := "*" + fmt.Sprint(len(params)) + "\r\n"
 				s += "$" + fmt.Sprint(len(cmd)) + "\r\n" + cmd + "\r\n"
 				s += "$" + fmt.Sprint(len(key)) + "\r\n" + key + "\r\n"
-
+				fmt.Printf("get hash %d \n",hash)
 				//here should check nil and empty string
 				for i := 2; i < len(params); i++ {
 					s += "$" + fmt.Sprint(len(params[i].(string))) + "\r\n" + params[i].(string) + "\r\n"
@@ -191,5 +182,25 @@ func HandleConn(conn net.Conn) {
 }
 
 func init() {
-	shards = NewShards()
+	f,er:=os.Open("sharding.json")
+	if er!=nil{
+		s:=fmt.Sprintf("%v",er)
+		panic(s)
+	}
+	b,_:=ioutil.ReadAll(f)
+	confshards := ConfigShards{}
+	json.Unmarshal(b,&confshards)
+	shards=Shards{}
+	shArray:=make([]Shard,0,len(confshards.ShardServers))
+	shards.Slots=uint32(confshards.Slots)
+	for _,shard:=range confshards.ShardServers{
+		sh:=Shard{}
+		sh.Host=shard.Host
+		sh.Slot0=uint32(shard.Slot0)
+		sh.Slot1=uint32(shard.Slot1)
+		sh.ShardRespPool=NewProxyClientPool(sh.Host)
+		shArray=append(shArray,sh)
+		fmt.Printf("get shard info %v \n",sh)
+	}
+	shards.ShardServers=shArray
 }

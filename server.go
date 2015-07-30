@@ -21,11 +21,11 @@ func (s ProxyServer) Start() error {
 		for {
 			conn, er := ln.Accept()
 			if er != nil {
-				//
+				
+			}else{
+				go HandleConn(conn)
 			}
-//			out, _ := net.Dial("tcp", s.TargetHost)
-//			go procRequest(conn, out)
-			go HandleConn(conn)
+
 
 		}
 

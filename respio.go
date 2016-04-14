@@ -10,23 +10,76 @@ import (
 	"net"
 	//"time"
 	"strconv"
-	"bytes"
+	
+)
+type RespType byte
+
+
+const (
+	TypeString    RespType = '+'
+	TypeError     RespType = '-'
+	TypeInt       RespType = ':'
+	TypeBulkBytes RespType = '$'
+	TypeArray     RespType = '*'
 )
 
+const(
+	STRING_FLAG=byte('+')
+	ARRAY_FLAG=byte('*')
+	ERROR_FLAG=byte('-')
+	INT_FLAG=(':')
+	BULK_FLAG=('$')
+	)
 type RespReaderWriter struct {
 	readerWriter bufio.ReadWriter
 	conn net.Conn
+	encoder *Encoder
+	decoder *Decoder
 }
+type Resp struct {
+	Type RespType
+	
+	Value []byte
+	Array []*Resp
+}
+func (r *Resp) IsString() bool {
+	return r.Type == TypeString
+}
+
+func (r *Resp) IsError() bool {
+	return r.Type == TypeError
+}
+
+func (r *Resp) IsInt() bool {
+	return r.Type == TypeInt
+}
+
+func (r *Resp) IsBulkBytes() bool {
+	return r.Type == TypeBulkBytes
+}
+
+func (r *Resp) IsArray() bool {
+	return r.Type == TypeArray
+}
+
 func (rw *RespReaderWriter)Close(){
 	rw.conn.Close()
 	}
+
 func NewRespReadWriter(conn net.Conn) RespReaderWriter {
+	
 	writer := bufio.NewWriter(conn)
 	reader := bufio.NewReader(conn)
+	encoder:= NewEncoder(writer)
+	decoder:= NewRespDecoder(reader)
 	rw := bufio.NewReadWriter(reader, writer)
 	cw := RespReaderWriter{readerWriter: *rw,conn:conn}
+	cw.encoder=encoder
+	cw.decoder=decoder
 	return cw
 }
+
+
 
 //read raw string data from server、client
 func (rw *RespReaderWriter) ProxyRead() (string, error) {
@@ -116,6 +169,8 @@ func (rw *RespReaderWriter) ProxyWrite(encoded string) error {
 	rw.readerWriter.Flush()
 	return nil
 }
+
+
 func (w *RespReaderWriter) Write(command string, key string, params ...interface{}) error {
 	//create bulkstring array
 	//write bulkstring to conn output
@@ -172,19 +227,17 @@ func (r *RespReaderWriter) LoopRead(cch chan<- int) (dch <-chan []interface{}) {
 }
 
 
-//func (r *RespReaderWriter) 
-func (r *RespReaderWriter) LoopRead2(cch chan<- int) (dch <-chan []interface{}) {
-	ch := make(chan []interface{})
+func (r *RespReaderWriter) LoopRead2(cch chan<- int) (dch <-chan *Resp) {
+	ch := make(chan *Resp)
 	go func() {
 		for {
-			d, err := r.Read()
+			d, err := r.decoder.decodeResp(0)
 			if err != nil {
-//				fmt.Printf("%v",err)
 				cch <- 1
 				close(cch)
 				close(ch)
 				break
-			} else if(len(d)>0){
+			} else {
 				ch <- d
 			}
 		}
@@ -287,48 +340,7 @@ func readArray(r *RespReaderWriter) ([]interface{}, error) {
 	return res, nil
 }
 
-func readFully(reader *bufio.Reader, size int, buffer *bytes.Buffer) error {
-	buf := make([]byte, size)
-	count, err := reader.Read(buf)
-	if err != nil {
-		return err
-	}
 
-	if count == size {
-		buffer.Write(buf)
-		return nil
-	} else {
-		buffer.Write(buf[:count-1])
-		readFully(reader, size-count, buffer)
-	}
-	return nil
-}
-
-
-func readBulkStringV2(r *RespReaderWriter) (interface{}, int, error) {
-	s, err := readPart(r)
-	if err != nil {
-		return "", -1, err
-	}
-	length, _ := strconv.Atoi(s)
-	if length == -1 { //null value
-		return nil, length, nil
-	}
-	if length == 0 { //empty string
-		r.readerWriter.ReadByte()
-		r.readerWriter.ReadByte()
-		return "", length, nil
-	}
-	var dataBuf bytes.Buffer
-	err = readFully(r.readerWriter.Reader, length, &dataBuf)
-	if(err!=nil){
-		return nil,-1,nil
-	}
-	//skip CRLF
-	r.readerWriter.ReadByte()
-	r.readerWriter.ReadByte()
-	return string(dataBuf.Bytes()), length, nil
-}
 
 
 func readBulkString(r *RespReaderWriter) (interface{}, int, error) {
@@ -387,3 +399,4 @@ func readPart(r *RespReaderWriter) (string, error) {
 		}
 	}
 }
+

@@ -14,17 +14,10 @@ import (
 )
 
 var (
-	crcTable *crc32.Table
-//	target   RespReaderWriter
 	shards   Shards
 )
 
-func Hash(key string) uint32 {
-	crc := crc32.New(crcTable)
-	crc.Write([]byte(key))
-	v := crc.Sum32()
-	return v
-}
+
 
 type Shard struct {
 	Host          string  	`json:"host"`
@@ -71,19 +64,13 @@ func (shards Shards) GetShard(hash uint32) (Shard, error) {
 }
 
 func HandleConn(conn net.Conn) {
-	//	timeout := time.Now()
-	//	timeout.Add(10 *time.Minute )
-	//	conn.SetReadDeadline(timeout)
-	//conn.
-	
 	client := NewRespReadWriter(conn)
 	cch := make(chan int) //close flag chan
-	dch := client.LoopRead(cch)
+	dch := client.LoopRead2(cch)
 	shardMap := make(map[Shard]*PooledObject)
 	var lastHash uint32
 	defer func() {
 		for _, o := range shardMap {
-			//if lastHash >= shard.Slot0 && lastHash < shard.Slot1 {
 				serverConn:=o.Value.(*RespReaderWriter)
 				s:="*1\r\n$4\r\nQUIT\r\n"
 				err:=serverConn.ProxyWrite(s)
@@ -92,7 +79,6 @@ func HandleConn(conn net.Conn) {
 				}
 				o.Broken = true //set last one to broken
 				fmt.Printf("set conn to broken,lastHash :%d\n", lastHash)
-		//	}
 			o.Release()
 			
 
@@ -103,11 +89,12 @@ func HandleConn(conn net.Conn) {
 		select {
 		case <-cch:
 			return
-		case params := <-dch:
-			if len(params) == 0 {
+		case d := <-dch:
+			if(d.Value==nil&&d.Array==nil||len(d.Array)==0){
 				continue
 			}
-			cmd := params[0].(string)
+			cmd := string(d.Array[0].Value)
+			fmt.Println("command "+cmd)
 			if cmd == "PING" {
 				client.ProxyWrite("+PONG\r\n")
 			} else if cmd == "QUIT" {
@@ -115,26 +102,26 @@ func HandleConn(conn net.Conn) {
 				client.Close()
 				return
 			} else if cmd == "ECHO" {
-				s:=fmt.Sprintf("$%d%s\r\n",len(params[1].(string)),params[1].(string))
+				s:=fmt.Sprintf("$%d%s\r\n",len(d.Array[1].Value),string(d.Array[1].Value))
 				client.ProxyWrite(s)
 			} else {
-				if len(params) < 2 {
-					fmt.Println(params)
-				}
-				key := params[1].(string)
-				hash := crc32.ChecksumIEEE([]byte(key))% uint32(1024)
+//				if len(params) < 2 {
+//					fmt.Println(params)
+//				}
+				key := d.Array[1].Value
+				hash := crc32.ChecksumIEEE(key)% uint32(1024)
 //				hash := Hash(key) % uint32(1024)
 				lastHash = hash
-				key = fmt.Sprint(hash) + "_" + key
+//				key = fmt.Sprint(hash) + "_" + key
 				//fmt.Println(key)
-				s := "*" + fmt.Sprint(len(params)) + "\r\n"
-				s += "$" + fmt.Sprint(len(cmd)) + "\r\n" + cmd + "\r\n"
-				s += "$" + fmt.Sprint(len(key)) + "\r\n" + key + "\r\n"
+//				s := "*" + fmt.Sprint(len(params)) + "\r\n"
+//				s += "$" + fmt.Sprint(len(cmd)) + "\r\n" + cmd + "\r\n"
+//				s += "$" + fmt.Sprint(len(key)) + "\r\n" + key + "\r\n"
 				
 				//here should check nil and empty string
-				for i := 2; i < len(params); i++ {
-					s += "$" + fmt.Sprint(len(params[i].(string))) + "\r\n" + params[i].(string) + "\r\n"
-				}
+//				for i := 2; i < len(params); i++ {
+//					s += "$" + fmt.Sprint(len(params[i].(string))) + "\r\n" + params[i].(string) + "\r\n"
+//				}
 				shard, err := shards.GetShard(hash)
 				if err != nil {
 					//handle error
@@ -154,20 +141,24 @@ func HandleConn(conn net.Conn) {
 
 				server := shardMap[shard]
 				ss := server.Value.(*RespReaderWriter)
-				err = ss.ProxyWrite(s)
+				err = ss.encoder.Encode(d,true)
+				fmt.Println("cmd sent")
 				if err != nil {
 					fmt.Printf("backend server write error:%v\n", err)
 					server.Broken = true
 					server.Release()
 					return
 				}
-				resp, err := ss.ProxyRead()
+				
+//				fmt.Println("cmd sent")
+				resp, err := ss.decoder.decodeResp(0)
 				if err != nil {
 					fmt.Printf("backend server read error:%v\n", err)
 					server.Broken = true
 					return
 				}
-				err = client.ProxyWrite(resp)
+				fmt.Println("decode resp")
+				err = client.encoder.Encode(resp,true)//.ProxyWrite(resp)
 				if err != nil {
 					fmt.Println("clent error")
 					server.Broken = true

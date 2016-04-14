@@ -10,6 +10,7 @@ import (
 	"net"
 	//"time"
 	"strconv"
+	"bytes"
 )
 
 type RespReaderWriter struct {
@@ -50,7 +51,7 @@ func (rw *RespReaderWriter) ProxyRead() (string, error) {
 		}
 		return s + ss + "\r\n", nil
 	case "$":
-		ss, length, err := readBulkString(rw)
+		ss, length, err := readBulkStringV2(rw)
 		if err != nil {
 			return "", err
 		}
@@ -80,7 +81,7 @@ func (rw *RespReaderWriter) ProxyRead() (string, error) {
 			_s := string(b)
 			switch _s {
 			case "$":
-				v, length, err := readBulkString(rw)
+				v, length, err := readBulkStringV2(rw)
 				if err != nil {
 					return "", err
 				}
@@ -169,6 +170,29 @@ func (r *RespReaderWriter) LoopRead(cch chan<- int) (dch <-chan []interface{}) {
 	}()
 	return ch
 }
+
+
+//func (r *RespReaderWriter) 
+func (r *RespReaderWriter) LoopRead2(cch chan<- int) (dch <-chan []interface{}) {
+	ch := make(chan []interface{})
+	go func() {
+		for {
+			d, err := r.Read()
+			if err != nil {
+//				fmt.Printf("%v",err)
+				cch <- 1
+				close(cch)
+				close(ch)
+				break
+			} else if(len(d)>0){
+				ch <- d
+			}
+		}
+	}()
+	return ch
+}
+
+
 func (r *RespReaderWriter) Read() ([]interface{}, error) {
 	b, err := r.readerWriter.ReadByte()
 	if err != nil {
@@ -262,6 +286,51 @@ func readArray(r *RespReaderWriter) ([]interface{}, error) {
 
 	return res, nil
 }
+
+func readFully(reader *bufio.Reader, size int, buffer *bytes.Buffer) error {
+	buf := make([]byte, size)
+	count, err := reader.Read(buf)
+	if err != nil {
+		return err
+	}
+
+	if count == size {
+		buffer.Write(buf)
+		return nil
+	} else {
+		buffer.Write(buf[:count-1])
+		readFully(reader, size-count, buffer)
+	}
+	return nil
+}
+
+
+func readBulkStringV2(r *RespReaderWriter) (interface{}, int, error) {
+	s, err := readPart(r)
+	if err != nil {
+		return "", -1, err
+	}
+	length, _ := strconv.Atoi(s)
+	if length == -1 { //null value
+		return nil, length, nil
+	}
+	if length == 0 { //empty string
+		r.readerWriter.ReadByte()
+		r.readerWriter.ReadByte()
+		return "", length, nil
+	}
+	var dataBuf bytes.Buffer
+	err = readFully(r.readerWriter.Reader, length, &dataBuf)
+	if(err!=nil){
+		return nil,-1,nil
+	}
+	//skip CRLF
+	r.readerWriter.ReadByte()
+	r.readerWriter.ReadByte()
+	return string(dataBuf.Bytes()), length, nil
+}
+
+
 func readBulkString(r *RespReaderWriter) (interface{}, int, error) {
 	s, err := readPart(r)
 	if err != nil {

@@ -15,7 +15,7 @@ import (
 
 var (
 	crcTable *crc32.Table
-	target   RespReaderWriter
+//	target   RespReaderWriter
 	shards   Shards
 )
 

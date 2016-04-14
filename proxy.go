@@ -122,7 +122,8 @@ func HandleConn(conn net.Conn) {
 					fmt.Println(params)
 				}
 				key := params[1].(string)
-				hash := Hash(key) % uint32(1024)
+				hash := crc32.ChecksumIEEE([]byte(key))% uint32(1024)
+//				hash := Hash(key) % uint32(1024)
 				lastHash = hash
 				key = fmt.Sprint(hash) + "_" + key
 				//fmt.Println(key)

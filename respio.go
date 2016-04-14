@@ -51,7 +51,7 @@ func (rw *RespReaderWriter) ProxyRead() (string, error) {
 		}
 		return s + ss + "\r\n", nil
 	case "$":
-		ss, length, err := readBulkStringV2(rw)
+		ss, length, err := readBulkString(rw)
 		if err != nil {
 			return "", err
 		}
@@ -81,7 +81,7 @@ func (rw *RespReaderWriter) ProxyRead() (string, error) {
 			_s := string(b)
 			switch _s {
 			case "$":
-				v, length, err := readBulkStringV2(rw)
+				v, length, err := readBulkString(rw)
 				if err != nil {
 					return "", err
 				}

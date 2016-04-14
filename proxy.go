@@ -94,7 +94,7 @@ func HandleConn(conn net.Conn) {
 				continue
 			}
 			cmd := string(d.Array[0].Value)
-			fmt.Println("command "+cmd)
+//			fmt.Println("command "+cmd)
 			if cmd == "PING" {
 				client.ProxyWrite("+PONG\r\n")
 			} else if cmd == "QUIT" {
@@ -142,7 +142,7 @@ func HandleConn(conn net.Conn) {
 				server := shardMap[shard]
 				ss := server.Value.(*RespReaderWriter)
 				err = ss.encoder.Encode(d,true)
-				fmt.Println("cmd sent")
+//				fmt.Println("cmd sent")
 				if err != nil {
 					fmt.Printf("backend server write error:%v\n", err)
 					server.Broken = true
@@ -157,7 +157,7 @@ func HandleConn(conn net.Conn) {
 					server.Broken = true
 					return
 				}
-				fmt.Println("decode resp")
+//				fmt.Println("decode resp")
 				err = client.encoder.Encode(resp,true)//.ProxyWrite(resp)
 				if err != nil {
 					fmt.Println("clent error")
